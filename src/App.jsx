@@ -5,7 +5,7 @@ import Planner from './pages/Planner'
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthGate>{() => <Planner />}</AuthGate>
+      <AuthGate>{(vendorName, onLogout) => <Planner vendorName={vendorName} onLogout={onLogout} />}</AuthGate>
     </ThemeProvider>
   )
 }

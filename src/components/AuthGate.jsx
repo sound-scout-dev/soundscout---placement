@@ -19,7 +19,16 @@ export default function AuthGate({ children }) {
   })
   const [draft, setDraft] = useState('')
 
-  if (vendorName) return children(vendorName)
+  const logout = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // localStorage unavailable — nothing to clear
+    }
+    setVendorName('')
+  }
+
+  if (vendorName) return children(vendorName, logout)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-zinc-950">
