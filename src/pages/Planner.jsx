@@ -144,7 +144,7 @@ export default function Planner() {
               onDoubleClick={() => {}}
               stageRef={stageRef}
             />
-            <ResultsPanel calibration={calibration} crowd={crowd} suggestions={suggestions} temperatureC={temperatureC} stageRef={stageRef} />
+            <ResultsPanel calibration={calibration} suggestions={suggestions} temperatureC={temperatureC} stageRef={stageRef} />
           </>
         )}
       </main>
