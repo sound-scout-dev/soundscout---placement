@@ -155,7 +155,7 @@ export default function Planner() {
       metersPerPixel: calibration.metersPerPixel,
       temperatureCelsius: temperatureC,
     })
-  }, [calibration.metersPerPixel, stage.locked, stageCenter, stageDimensionsMeters, crowd.locked, crowd.points, temperatureC])
+  }, [calibration.metersPerPixel, stage.locked, stageCenter, stageDimensionsMeters?.width, crowd.locked, crowd.points, temperatureC])
 
   const scene = {
     stageMarker: stage.a ? stage : null,

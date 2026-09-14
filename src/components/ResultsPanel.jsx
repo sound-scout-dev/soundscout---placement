@@ -37,6 +37,10 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
       )
     })
   }
+  if (planMatch) {
+    lines.push('', `Plan match: ${planMatch.mainSummary}`)
+    if (planMatch.delaySummary) lines.push(`Plan match: ${planMatch.delaySummary}`)
+  }
   lines.push('', 'AI-assisted placement suggestions — planning starting point, not a certified acoustic design.')
   return lines.join('\n')
 }
@@ -65,7 +69,7 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
   }
 
   const handleCopySummary = async () => {
-    const text = buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters })
+    const text = buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters, planMatch })
     try {
       await navigator.clipboard.writeText(text)
       setCopyState('copied')
@@ -132,9 +136,16 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
       </div>
 
       {suggestions.delayTowers.length === 0 ? (
-        <p className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          No delay towers needed — the crowd fits within the main PA's own 6dB-even coverage throw.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            No delay towers needed — the crowd fits within the main PA's own 6dB-even coverage throw.
+          </p>
+          {planMatch?.delaySummary && (
+            <div className="px-1">
+              <PlanMatchLine text={planMatch.delaySummary} ok={planMatch.delayOk} />
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {suggestions.delayTowers.map((tower, i) => (
