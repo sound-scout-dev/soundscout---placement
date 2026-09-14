@@ -38,7 +38,7 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
   if (!suggestions) {
     return (
       <aside className="w-full shrink-0 border-t border-gray-200 bg-gray-50/60 p-4 text-xs text-gray-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400 sm:w-80 sm:border-l sm:border-t-0">
-        Finish the calibration, stage, and crowd-area steps to see placement suggestions here.
+        Finish the stage and crowd-area steps to see placement suggestions here.
       </aside>
     )
   }

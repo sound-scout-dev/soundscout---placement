@@ -37,7 +37,7 @@ export default function Planner() {
   // Loaded once here (not inside CanvasStage) because converting the AI's
   // normalized stage-box suggestion into pixel coordinates needs the
   // photo's natural dimensions.
-  const [image, imgSize] = useHtmlImage(imageUrl)
+  const [image, imgSize, imageError] = useHtmlImage(imageUrl)
 
   const advanceTo = (key) => {
     setStep(key)
@@ -211,7 +211,11 @@ export default function Planner() {
                 stageRef={stageRef}
               />
               {step === 'analyzing' && (
-                <AnalyzingOverlay error={analysisError} onRetry={() => setAnalysisAttempt((n) => n + 1)} />
+                <AnalyzingOverlay
+                  error={imageError || analysisError}
+                  onRetry={imageError ? handleReset : () => setAnalysisAttempt((n) => n + 1)}
+                  retryLabel={imageError ? 'Choose a Different Photo' : 'Retry Analysis'}
+                />
               )}
             </div>
             <ResultsPanel
