@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import Button from './Button'
+import InfraPlanImport from './InfraPlanImport'
+import { comparePlanToSuggestions } from '../utils/infraPlan'
 
-function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters }) {
+function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters, planMatch }) {
   const lines = [
     'SoundScout Venue Planner — Placement Summary',
     '',
@@ -39,8 +41,10 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
   return lines.join('\n')
 }
 
-export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef, stageDimensionsMeters, planMatch }) {
+export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef, stageDimensionsMeters }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
+  const [planCounts, setPlanCounts] = useState(null)
+  const planMatch = planCounts ? comparePlanToSuggestions(planCounts, suggestions) : null
 
   if (!suggestions) {
     return (
@@ -158,6 +162,8 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
           )}
         </div>
       )}
+
+      <InfraPlanImport planCounts={planCounts} onPlanParsed={setPlanCounts} onClear={() => setPlanCounts(null)} />
 
       <div className="mt-auto flex flex-col gap-2 pt-2">
         <Button onClick={handleDownloadImage}>Download as Image</Button>
