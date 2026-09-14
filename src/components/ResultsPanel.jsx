@@ -5,24 +5,31 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
   const lines = [
     'SoundScout Venue Planner — Placement Summary',
     '',
-    `Scale: ${calibration.metersPerPixel.toFixed(4)} m/px (calibrated from a ${calibration.realDistanceMeters}m reference)`,
+    `Scale: ${calibration.metersPerPixel.toFixed(4)} m/px`,
     `Air temperature: ${temperatureC}°C  (speed of sound: ${suggestions.speedOfSoundMs.toFixed(1)} m/s)`,
   ]
   if (stageDimensionsMeters) {
     lines.push(`Stage footprint: ${stageDimensionsMeters.width.toFixed(1)}m × ${stageDimensionsMeters.depth.toFixed(1)}m`)
   }
-  lines.push(
-    `Crowd depth: ${suggestions.crowdDepthMeters.toFixed(1)}m`,
-    '',
-    `Main PA: (${suggestions.mainPA.x.toFixed(0)}, ${suggestions.mainPA.y.toFixed(0)}) px`
-  )
+  lines.push(`Crowd depth: ${suggestions.crowdDepthMeters.toFixed(1)}m`, '')
+
+  if (suggestions.needsSplitHangs) {
+    lines.push(
+      `Main PA: SPLIT Left/Right hangs (crowd needs ~${suggestions.coverageAngleDeg.toFixed(0)}° coverage — beyond a single hang's ~100° range)`
+    )
+    suggestions.mainPAs.forEach((hang) => lines.push(`  ${hang.side.toUpperCase()}: (${hang.x.toFixed(0)}, ${hang.y.toFixed(0)}) px`))
+  } else {
+    lines.push(`Main PA: (${suggestions.mainPA.x.toFixed(0)}, ${suggestions.mainPA.y.toFixed(0)}) px — single hang covers the crowd's ~${suggestions.coverageAngleDeg.toFixed(0)}° width`)
+  }
+  lines.push(`Holds even level (within 6dB) out to ${suggestions.mainCoverage.sixDbPointM.toFixed(0)}m before reinforcement is needed`)
+
   if (suggestions.delayTowers.length === 0) {
-    lines.push('', 'No delay towers required — crowd depth is within single-PA coverage at default 35m spacing.')
+    lines.push('', 'No delay towers required — the crowd fits within the main PA\'s own 6dB-even coverage throw.')
   } else {
     suggestions.delayTowers.forEach((t, i) => {
       lines.push(
         '',
-        `Delay Tower ${i + 1}: ${t.distanceMeters.toFixed(1)}m from Main PA`,
+        `Delay Tower ${i + 1}: ${t.distanceMeters.toFixed(1)}m from Main PA (${t.splDeltaDb.toFixed(1)} dB vs. front-of-crowd reference)`,
         `  Recommended delay: ${t.recommendedDelayMs.toFixed(1)} ms`,
         `  (${t.formula.baseDelay}; +15ms Haas offset)`
       )
@@ -32,7 +39,7 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
   return lines.join('\n')
 }
 
-export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef, stageDimensionsMeters }) {
+export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef, stageDimensionsMeters, planMatch }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   if (!suggestions) {
@@ -68,7 +75,7 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
     <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-gray-200 bg-gray-50/60 p-4 dark:border-zinc-800 dark:bg-zinc-900/60 sm:w-80 sm:border-l sm:border-t-0">
       <div>
         <h2 className="font-display text-sm font-semibold text-gray-900 dark:text-white">Placement Summary</h2>
-        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-zinc-400">Auto-generated from your calibration, stage, and crowd inputs.</p>
+        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-zinc-400">Auto-generated from your stage and crowd inputs.</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-y-1.5 text-xs">
@@ -88,18 +95,41 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
         )}
         <dt className="text-gray-500 dark:text-zinc-400">Crowd depth</dt>
         <dd className="data-value text-right text-gray-900 dark:text-white">{suggestions.crowdDepthMeters.toFixed(1)} m</dd>
+        <dt className="text-gray-500 dark:text-zinc-400">Coverage angle</dt>
+        <dd className="data-value text-right text-gray-900 dark:text-white">{suggestions.coverageAngleDeg.toFixed(0)}°</dd>
       </dl>
 
       <div className="rounded-lg border border-emerald-600/20 bg-white p-3 shadow-sm dark:bg-zinc-950">
-        <p className="font-display text-xs font-semibold text-emerald-600">Main PA</p>
-        <p className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
-          x: {suggestions.mainPA.x.toFixed(0)}px, y: {suggestions.mainPA.y.toFixed(0)}px
+        <div className="flex items-baseline justify-between">
+          <p className="font-display text-xs font-semibold text-emerald-600">{suggestions.needsSplitHangs ? 'Main PA — Split L/R' : 'Main PA'}</p>
+        </div>
+        {suggestions.needsSplitHangs ? (
+          <>
+            <p className="mt-1 text-[10.5px] text-gray-500 dark:text-zinc-400">
+              Crowd needs ~{suggestions.coverageAngleDeg.toFixed(0)}° of coverage — wider than a single hang's usable range (~100°), so it's split
+              into two hangs at the stage edges.
+            </p>
+            {suggestions.mainPAs.map((hang) => (
+              <p key={hang.side} className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
+                {hang.side.toUpperCase()} — x: {hang.x.toFixed(0)}px, y: {hang.y.toFixed(0)}px
+              </p>
+            ))}
+          </>
+        ) : (
+          <p className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
+            x: {suggestions.mainPA.x.toFixed(0)}px, y: {suggestions.mainPA.y.toFixed(0)}px
+          </p>
+        )}
+        <p className="mt-1.5 border-t border-emerald-600/10 pt-1.5 text-[10.5px] text-gray-500 dark:text-zinc-400">
+          Holds even level (within 6dB) out to <span className="data-value">{suggestions.mainCoverage.sixDbPointM.toFixed(0)}m</span> — the inverse-square
+          law's "doubling distance" from its {suggestions.mainCoverage.nearM.toFixed(0)}m design throw.
         </p>
+        {planMatch?.mainSummary && <PlanMatchLine text={planMatch.mainSummary} ok={planMatch.mainOk} />}
       </div>
 
       {suggestions.delayTowers.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          No delay towers suggested — this crowd area fits within single-PA coverage at the default <span className="data-value">35m</span> ring spacing.
+          No delay towers needed — the crowd fits within the main PA's own 6dB-even coverage throw.
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -116,8 +146,16 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
                 <br />
                 {tower.formula.recommended}
               </p>
+              <p className="data-value mt-1.5 border-t border-cyan-600/10 pt-1.5 text-[10.5px] text-gray-500 dark:text-zinc-400">
+                {tower.formula.spl} — {tower.splDeltaDb.toFixed(1)}dB vs. the front-of-crowd reference is why this position needs reinforcement.
+              </p>
             </div>
           ))}
+          {planMatch?.delaySummary && (
+            <div className="px-1">
+              <PlanMatchLine text={planMatch.delaySummary} ok={planMatch.delayOk} />
+            </div>
+          )}
         </div>
       )}
 
@@ -129,4 +167,8 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
       </div>
     </aside>
   )
+}
+
+function PlanMatchLine({ text, ok }) {
+  return <p className={`text-[10.5px] font-medium ${ok ? 'text-emerald-600' : 'text-amber-600'}`}>{ok ? '✓' : '⚠'} {text}</p>
 }
