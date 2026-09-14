@@ -52,7 +52,7 @@ export default function ImageUploader({ onImageSelected }) {
         {error && <p className="mt-4 text-xs text-red-500">{error}</p>}
 
         <p className="mt-8 font-mono text-[11px] uppercase tracking-widest text-gray-400 dark:text-zinc-500">
-          Next: draw a line on a known-length object to calibrate scale
+          Next: AI automatically analyzes the photo for scale and a stage spot
         </p>
       </div>
     </div>
