@@ -152,23 +152,27 @@ export function generateDelayTowerSuggestions({
 
   const delayTowers = []
   let ringDistanceM = DELAY_RING_SPACING_M
+  const nearDepthM = nearDepthPx * metersPerPixel
   const farDepthM = farDepthPx * metersPerPixel
 
-  while (
-    ringDistanceM <= farDepthM - MIN_MARGIN_TO_BACK_OF_CROWD_M &&
-    delayTowers.length < MAX_DELAY_TOWERS
-  ) {
-    const ringDistancePx = ringDistanceM / metersPerPixel
-    const position = {
-      x: mainPA.x + axis.x * ringDistancePx + across.x * centerAcrossPx,
-      y: mainPA.y + axis.y * ringDistancePx + across.y * centerAcrossPx,
+  // Rings are spaced every DELAY_RING_SPACING_M from the main PA, but a ring
+  // only becomes an actual tower once it falls INSIDE the crowd area
+  // (>= nearDepthM) — otherwise it'd sit in the gap between the stage and
+  // where the audience actually starts, which no vendor would rig.
+  while (ringDistanceM <= farDepthM - MIN_MARGIN_TO_BACK_OF_CROWD_M && delayTowers.length < MAX_DELAY_TOWERS) {
+    if (ringDistanceM >= nearDepthM) {
+      const ringDistancePx = ringDistanceM / metersPerPixel
+      const position = {
+        x: mainPA.x + axis.x * ringDistancePx + across.x * centerAcrossPx,
+        y: mainPA.y + axis.y * ringDistancePx + across.y * centerAcrossPx,
+      }
+      const delay = computeDelayForPoint(mainPA, position, metersPerPixel, temperatureCelsius)
+      delayTowers.push({
+        id: `delay-${delayTowers.length + 1}`,
+        position,
+        ...delay,
+      })
     }
-    const delay = computeDelayForPoint(mainPA, position, metersPerPixel, temperatureCelsius)
-    delayTowers.push({
-      id: `delay-${delayTowers.length + 1}`,
-      position,
-      ...delay,
-    })
     ringDistanceM += DELAY_RING_SPACING_M
   }
 
