@@ -2,7 +2,7 @@
 // Planner page (state machine) so the two never drift out of sync.
 export const STEPS = [
   { key: 'upload', label: 'Upload' },
-  { key: 'calibrate', label: 'Calibrate' },
+  { key: 'analyzing', label: 'Analyze' },
   { key: 'stage', label: 'Stage' },
   { key: 'crowd', label: 'Crowd Area' },
   { key: 'results', label: 'Results' },

@@ -1,8 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'react-konva'
-import useHtmlImage from '../utils/useHtmlImage'
 
-const INTERACTIVE_STEPS = new Set(['calibrate', 'stage', 'crowd'])
+const INTERACTIVE_STEPS = new Set(['stage', 'crowd'])
 
 // Marker colors follow the same semantic roles the main platform uses
 // elsewhere (StatusBadge, links): cyan = in-progress/measurement, emerald =
@@ -11,7 +10,6 @@ const INTERACTIVE_STEPS = new Set(['calibrate', 'stage', 'crowd'])
 // chrome, so each pairs a solid fill with a contrasting stroke ring to stay
 // legible regardless of the photo underneath or the app's light/dark theme.
 const COLORS = {
-  calibration: '#0891B2', // cyan-600
   stage: '#374151', // gray-700
   crowd: '#F59E0B', // amber-500
   mainPA: '#059669', // emerald-600
@@ -20,13 +18,12 @@ const COLORS = {
 }
 
 /**
- * Pure-ish renderer + pointer-event relay. It owns responsive scaling and
- * coordinate conversion (screen px -> original image px); the Planner page
- * owns all workflow state and decides what `scene` looks like at any given
- * step.
+ * Pure-ish renderer + pointer-event relay. It owns responsive scaling; the
+ * Planner page owns image loading (it needs the natural size itself, to
+ * convert the AI's normalized stage suggestion into pixel coordinates) and
+ * all workflow state, deciding what `scene` looks like at any given step.
  */
-export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPointerMove, onDoubleClick, stageRef }) {
-  const [image, imgSize] = useHtmlImage(imageUrl)
+export default function CanvasStage({ image, imgSize, step, scene, onPointerDown, onPointerMove, onDoubleClick, stageRef }) {
   const wrapperRef = useRef(null)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
@@ -66,7 +63,7 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
 
   const isInteractive = INTERACTIVE_STEPS.has(step)
 
-  const { calibration, stageMarker, crowd, suggestions, previewPoint } = scene
+  const { stageMarker, crowd, suggestions, previewPoint } = scene
 
   // Konva Text can't read the label text's own bounding box before it's
   // drawn, so a fixed shadow gives every canvas label a readable halo
@@ -100,31 +97,6 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
         >
           <Layer>
             <KonvaImage image={image} width={imgSize.width} height={imgSize.height} />
-
-            {/* Calibration line */}
-            {calibration?.a && (
-              <>
-                <Line
-                  points={[calibration.a.x, calibration.a.y, (calibration.b ?? previewPoint ?? calibration.a).x, (calibration.b ?? previewPoint ?? calibration.a).y]}
-                  stroke={COLORS.calibration}
-                  strokeWidth={2 / scale}
-                  dash={calibration.locked ? undefined : [8 / scale, 5 / scale]}
-                />
-                <Circle x={calibration.a.x} y={calibration.a.y} radius={5 / scale} fill={COLORS.calibration} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />
-                {calibration.b && <Circle x={calibration.b.x} y={calibration.b.y} radius={5 / scale} fill={COLORS.calibration} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />}
-                {calibration.locked && calibration.label && (
-                  <Text
-                    x={(calibration.a.x + calibration.b.x) / 2}
-                    y={(calibration.a.y + calibration.b.y) / 2 - 18 / scale}
-                    text={calibration.label}
-                    fontFamily="IBM Plex Mono"
-                    fontSize={13 / scale}
-                    fill="#FFFFFF"
-                    {...labelShadow}
-                  />
-                )}
-              </>
-            )}
 
             {/* Crowd boundary */}
             {crowd?.points?.length > 0 && (
@@ -160,7 +132,7 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
                 <Text
                   x={Math.min(stageMarker.a.x, (stageMarker.b ?? previewPoint ?? stageMarker.a).x) + 6 / scale}
                   y={Math.min(stageMarker.a.y, (stageMarker.b ?? previewPoint ?? stageMarker.a).y) - 18 / scale}
-                  text="STAGE"
+                  text={stageMarker.suggested && !stageMarker.locked ? 'STAGE (AI SUGGESTED)' : 'STAGE'}
                   fontFamily="Space Grotesk"
                   fontSize={12 / scale}
                   fontStyle="bold"

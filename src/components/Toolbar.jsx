@@ -4,7 +4,7 @@ import Logo from './Logo'
 import Button from './Button'
 import ThemeToggle from './ThemeToggle'
 
-export default function Toolbar({ step, furthestStep, onJumpToStep, temperatureC, onTemperatureChange, onReset, hasImage }) {
+export default function Toolbar({ step, furthestStep, onJumpToStep, temperatureC, onTemperatureChange, metersPerPixel, onMetersPerPixelChange, onReset, hasImage }) {
   const furthestIdx = stepIndex(furthestStep)
 
   return (
@@ -45,6 +45,23 @@ export default function Toolbar({ step, furthestStep, onJumpToStep, temperatureC
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
+          {metersPerPixel != null && (
+            <label
+              className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-gray-500 dark:text-zinc-400"
+              title="AI-estimated scale — edit if you know the real-world scale better."
+            >
+              Scale
+              <input
+                type="number"
+                min="0.0001"
+                step="0.001"
+                value={metersPerPixel}
+                onChange={(e) => onMetersPerPixelChange(Number(e.target.value))}
+                className="data-value w-16 rounded border border-gray-200 bg-white px-1.5 py-1 text-xs font-normal normal-case tracking-normal text-gray-900 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+              />
+              m/px
+            </label>
+          )}
           <label className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-gray-500 dark:text-zinc-400">
             Air temp
             <input
