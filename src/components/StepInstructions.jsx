@@ -1,20 +1,26 @@
+import { ArrowLeft } from 'lucide-react'
 import Button from './Button'
 
-export default function StepInstructions({ step, stage, crowd, onAcceptStageSuggestion, onUndoCrowdPoint, onClearCrowd, onFinishCrowd, onRestartStage }) {
+export default function StepInstructions({ step, stage, crowd, onBack, onConfirmStage, onUndoCrowdPoint, onClearCrowd, onFinishCrowd, onClearStage }) {
   if (step === 'stage') {
-    const hasUnconfirmedSuggestion = stage?.suggested && stage?.a && !stage?.locked
+    const hasBox = stage?.x != null
+    const isEditing = hasBox && !stage.locked
 
-    if (hasUnconfirmedSuggestion) {
+    if (isEditing) {
       return (
         <Bar>
+          <BackButton onBack={onBack} />
           <div className="flex flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Instruction>AI suggested a stage placement — reviewing before you confirm.</Instruction>
-              <Button size="sm" onClick={onAcceptStageSuggestion}>
-                Accept This Placement
+              <Instruction>
+                {stage.suggested ? 'AI suggested a stage placement. ' : ''}
+                Drag to move, corner handles to resize, top handle to rotate.
+              </Instruction>
+              <Button size="sm" onClick={onConfirmStage}>
+                {stage.suggested ? 'Accept This Placement' : 'Confirm Stage Placement'}
               </Button>
-              <Button variant="outline" size="sm" onClick={onRestartStage}>
-                Draw My Own Instead
+              <Button variant="outline" size="sm" onClick={onClearStage}>
+                Clear &amp; Redraw
               </Button>
             </div>
             {stage.reasoning && (
@@ -29,12 +35,8 @@ export default function StepInstructions({ step, stage, crowd, onAcceptStageSugg
 
     return (
       <Bar>
+        <BackButton onBack={onBack} />
         <Instruction>Click one corner of the stage area, then click the opposite corner to draw the box.</Instruction>
-        {stage?.a && (
-          <Button variant="outline" size="sm" onClick={onRestartStage}>
-            Redo Placement
-          </Button>
-        )}
       </Bar>
     )
   }
@@ -43,6 +45,7 @@ export default function StepInstructions({ step, stage, crowd, onAcceptStageSugg
     const count = crowd?.points?.length ?? 0
     return (
       <Bar>
+        <BackButton onBack={onBack} />
         <Instruction>Click to outline the crowd area ({count} point{count === 1 ? '' : 's'} placed, minimum 3).</Instruction>
         <Button variant="outline" size="sm" onClick={onUndoCrowdPoint} disabled={count === 0}>
           Undo Point
@@ -57,7 +60,26 @@ export default function StepInstructions({ step, stage, crowd, onAcceptStageSugg
     )
   }
 
+  if (step === 'results') {
+    return (
+      <Bar>
+        <BackButton onBack={onBack} />
+        <Instruction>Review the suggestions below, export them, or go back to adjust anything.</Instruction>
+      </Bar>
+    )
+  }
+
   return null
+}
+
+function BackButton({ onBack }) {
+  if (!onBack) return null
+  return (
+    <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0 gap-1 pl-2">
+      <ArrowLeft size={13} strokeWidth={2} />
+      Back
+    </Button>
+  )
 }
 
 function Bar({ children }) {

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'react-konva'
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text, Group, Transformer } from 'react-konva'
 
 const INTERACTIVE_STEPS = new Set(['stage', 'crowd'])
 
@@ -23,9 +23,11 @@ const COLORS = {
  * convert the AI's normalized stage suggestion into pixel coordinates) and
  * all workflow state, deciding what `scene` looks like at any given step.
  */
-export default function CanvasStage({ image, imgSize, step, scene, onPointerDown, onPointerMove, onDoubleClick, stageRef }) {
+export default function CanvasStage({ image, imgSize, step, scene, onPointerDown, onPointerMove, onStageTransform, stageRef }) {
   const wrapperRef = useRef(null)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+  const stageGroupRef = useRef(null)
+  const transformerRef = useRef(null)
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -39,6 +41,22 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+
+  const { stageMarker, stageDraftCorner, crowd, suggestions, previewPoint } = scene
+  // The box is only draggable/resizable/rotatable while its own step is
+  // active and it hasn't been confirmed yet — matches how every other layer
+  // freezes once you move past its step, and avoids the transform handles
+  // eating clicks meant for drawing the crowd polygon on the same canvas.
+  const isStageEditable = step === 'stage' && !!stageMarker && !stageMarker.locked
+
+  useEffect(() => {
+    if (isStageEditable && stageGroupRef.current && transformerRef.current) {
+      transformerRef.current.nodes([stageGroupRef.current])
+      transformerRef.current.getLayer()?.batchDraw()
+    } else if (transformerRef.current) {
+      transformerRef.current.nodes([])
+    }
+  }, [isStageEditable])
 
   if (!image || imgSize.width === 0) {
     return (
@@ -63,8 +81,6 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
 
   const isInteractive = INTERACTIVE_STEPS.has(step)
 
-  const { stageMarker, crowd, suggestions, previewPoint } = scene
-
   // Konva Text can't read the label text's own bounding box before it's
   // drawn, so a fixed shadow gives every canvas label a readable halo
   // against a photo of any brightness, in either app theme.
@@ -74,7 +90,7 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
     <div ref={wrapperRef} className="flex flex-1 items-center justify-center overflow-hidden p-4">
       <div
         className="rounded border border-gray-200 bg-gray-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-        style={{ width: displayWidth, height: displayHeight, cursor: isInteractive ? 'crosshair' : 'default' }}
+        style={{ width: displayWidth, height: displayHeight, cursor: isInteractive && !isStageEditable ? 'crosshair' : 'default' }}
       >
         <Stage
           ref={stageRef}
@@ -83,16 +99,15 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
           scaleX={scale}
           scaleY={scale}
           onMouseDown={(e) => {
+            // Once a stage box exists, Planner's handler no-ops regardless of
+            // what was clicked — so a mousedown that starts a drag/resize on
+            // the box itself is harmless here; Konva handles that natively.
             const p = getImagePoint(e)
             if (p) onPointerDown(p)
           }}
           onMouseMove={(e) => {
             const p = getImagePoint(e)
             if (p) onPointerMove(p)
-          }}
-          onDblClick={(e) => {
-            const p = getImagePoint(e)
-            if (p) onDoubleClick(p)
           }}
         >
           <Layer>
@@ -113,32 +128,77 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
               <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill={COLORS.crowd} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />
             ))}
 
-            {/* Stage box — drawn corner-to-corner, same interaction as the
-                calibration line: click one corner, then the opposite one. */}
-            {stageMarker?.a && (
+            {/* Rubber-band preview while drawing a brand-new stage box
+                (before the second click finalizes it into a real shape). */}
+            {!stageMarker && stageDraftCorner && (
+              <Rect
+                x={Math.min(stageDraftCorner.x, (previewPoint ?? stageDraftCorner).x)}
+                y={Math.min(stageDraftCorner.y, (previewPoint ?? stageDraftCorner).y)}
+                width={Math.abs((previewPoint ?? stageDraftCorner).x - stageDraftCorner.x)}
+                height={Math.abs((previewPoint ?? stageDraftCorner).y - stageDraftCorner.y)}
+                fill="rgba(55,65,81,0.4)"
+                stroke={COLORS.markerStroke}
+                strokeWidth={1.5 / scale}
+                dash={[6 / scale, 4 / scale]}
+              />
+            )}
+
+            {/* Stage box — a rotatable, draggable, resizable Konva Group once
+                drawn. Transform handles (Transformer below) appear whenever
+                it's editable; dragging/resizing/rotating reports back up to
+                the Planner via onStageTransform. */}
+            {stageMarker && (
               <>
-                <Rect
-                  x={Math.min(stageMarker.a.x, (stageMarker.b ?? previewPoint ?? stageMarker.a).x)}
-                  y={Math.min(stageMarker.a.y, (stageMarker.b ?? previewPoint ?? stageMarker.a).y)}
-                  width={Math.abs((stageMarker.b ?? previewPoint ?? stageMarker.a).x - stageMarker.a.x)}
-                  height={Math.abs((stageMarker.b ?? previewPoint ?? stageMarker.a).y - stageMarker.a.y)}
-                  fill="rgba(55,65,81,0.55)"
-                  stroke={COLORS.markerStroke}
-                  strokeWidth={1.5 / scale}
-                  dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
-                />
-                <Circle x={stageMarker.a.x} y={stageMarker.a.y} radius={4 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />
-                {stageMarker.b && <Circle x={stageMarker.b.x} y={stageMarker.b.y} radius={4 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />}
-                <Text
-                  x={Math.min(stageMarker.a.x, (stageMarker.b ?? previewPoint ?? stageMarker.a).x) + 6 / scale}
-                  y={Math.min(stageMarker.a.y, (stageMarker.b ?? previewPoint ?? stageMarker.a).y) - 18 / scale}
-                  text={stageMarker.suggested && !stageMarker.locked ? 'STAGE (AI SUGGESTED)' : 'STAGE'}
-                  fontFamily="Space Grotesk"
-                  fontSize={12 / scale}
-                  fontStyle="bold"
-                  fill="#FFFFFF"
-                  {...labelShadow}
-                />
+                <Group
+                  ref={stageGroupRef}
+                  x={stageMarker.x}
+                  y={stageMarker.y}
+                  rotation={stageMarker.rotation}
+                  draggable={isStageEditable}
+                  onDragEnd={(e) => onStageTransform({ x: e.target.x(), y: e.target.y() })}
+                  onTransformEnd={(e) => {
+                    const node = e.target
+                    const nextWidth = Math.max(10, stageMarker.width * node.scaleX())
+                    const nextHeight = Math.max(10, stageMarker.height * node.scaleY())
+                    node.scaleX(1)
+                    node.scaleY(1)
+                    onStageTransform({ x: node.x(), y: node.y(), width: nextWidth, height: nextHeight, rotation: node.rotation() })
+                  }}
+                >
+                  <Rect
+                    x={-stageMarker.width / 2}
+                    y={-stageMarker.height / 2}
+                    width={stageMarker.width}
+                    height={stageMarker.height}
+                    fill="rgba(55,65,81,0.55)"
+                    stroke={COLORS.markerStroke}
+                    strokeWidth={1.5 / scale}
+                    dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
+                  />
+                  <Text
+                    x={-stageMarker.width / 2 + 6 / scale}
+                    y={-stageMarker.height / 2 - 18 / scale}
+                    text={stageMarker.suggested && !stageMarker.locked ? 'STAGE (AI SUGGESTED)' : 'STAGE'}
+                    fontFamily="Space Grotesk"
+                    fontSize={12 / scale}
+                    fontStyle="bold"
+                    fill="#FFFFFF"
+                    {...labelShadow}
+                  />
+                </Group>
+                {isStageEditable && (
+                  <Transformer
+                    ref={transformerRef}
+                    rotateEnabled
+                    anchorSize={9 / scale}
+                    anchorStroke={COLORS.stage}
+                    anchorFill="#FFFFFF"
+                    borderStroke={COLORS.stage}
+                    borderDash={[4 / scale, 3 / scale]}
+                    rotateAnchorOffset={22 / scale}
+                    boundBoxFunc={(oldBox, newBox) => (newBox.width < 15 || newBox.height < 15 ? oldBox : newBox)}
+                  />
+                )}
               </>
             )}
 
