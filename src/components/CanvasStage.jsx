@@ -151,7 +151,7 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
                     <Text
                       x={hang.x + 12 / scale}
                       y={hang.y - 8 / scale}
-                      text={suggestions.needsSplitHangs ? `MAIN PA (${hang.side.toUpperCase()})` : 'MAIN PA'}
+                      text={`MAIN PA — ${hang.side.toUpperCase()}`}
                       fontFamily="Space Grotesk"
                       fontSize={12 / scale}
                       fontStyle="bold"
