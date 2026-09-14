@@ -10,7 +10,8 @@ import { estimateScaleFromPhoto } from '../utils/aiService'
 import { stepIndex } from '../utils/steps'
 
 const EMPTY_CALIBRATION = { a: null, b: null, locked: false, realDistanceMeters: null, metersPerPixel: null, label: null }
-const EMPTY_STAGE = { position: null, facing: null, locked: false }
+// The stage is just a box, drawn corner-to-corner — same shape as calibration.
+const EMPTY_STAGE = { a: null, b: null, locked: false }
 const EMPTY_CROWD = { points: [], locked: false }
 
 export default function Planner() {
@@ -66,9 +67,9 @@ export default function Planner() {
       })
     } else if (step === 'stage') {
       setStage((prev) => {
-        if (!prev.position || (prev.position && prev.facing)) return { position: point, facing: null, locked: false }
+        if (!prev.a || (prev.a && prev.b)) return { ...EMPTY_STAGE, a: point }
         advanceTo('crowd')
-        return { ...prev, facing: point, locked: true }
+        return { ...prev, b: point, locked: true }
       })
     } else if (step === 'crowd') {
       setCrowd((prev) => ({ ...prev, points: [...prev.points, point] }))
@@ -94,6 +95,17 @@ export default function Planner() {
     return estimateScaleFromPhoto(dataUrl)
   }
 
+  // The stage footprint needs SOME facing direction to orient itself even
+  // before it's locked in — fall back to wherever the mouse currently is
+  // while the vendor is still on the "click to set facing" half of this
+  // step, so the box rotates live instead of only appearing once locked.
+  const stageFacingTarget = stage.facing ?? (step === 'stage' ? previewPoint : null)
+  const stageFootprint = useMemo(() => {
+    if (!stage.position || !stageFacingTarget || !calibration.metersPerPixel) return null
+    const facingUnitVector = unitVector(stage.position, stageFacingTarget)
+    return computeStageFootprint(stage.position, facingUnitVector, calibration.metersPerPixel)
+  }, [stage.position, stageFacingTarget, calibration.metersPerPixel])
+
   const suggestions = useMemo(() => {
     if (!calibration.locked || !stage.locked || !crowd.locked) return null
     return generateSuggestions({
@@ -107,7 +119,7 @@ export default function Planner() {
 
   const scene = {
     calibration: calibration.a ? calibration : null,
-    stageMarker: stage.position ? stage : null,
+    stageMarker: stage.position ? { ...stage, footprint: stageFootprint } : null,
     crowd,
     suggestions,
     previewPoint: step === 'upload' || step === 'results' ? null : previewPoint,

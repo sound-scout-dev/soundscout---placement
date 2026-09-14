@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  speedOfSoundMs,
-  computeMetersPerPixel,
-  computeDelayForPoint,
-  generateSuggestions,
-} from './acoustics'
+import { speedOfSoundMs, computeMetersPerPixel, computeDelayForPoint, computeCentroid, generateSuggestions } from './acoustics'
 
 describe('speedOfSoundMs', () => {
   it('matches the standard 20°C reference value (~343 m/s)', () => {
@@ -44,10 +39,36 @@ describe('computeDelayForPoint', () => {
   })
 })
 
+describe('computeCentroid', () => {
+  it('averages a set of points', () => {
+    const centroid = computeCentroid([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ])
+    expect(centroid).toEqual({ x: 5, y: 5 })
+  })
+})
+
 describe('generateSuggestions', () => {
+  // No separate "facing" input anymore — the sound-projection axis is
+  // derived from stagePosition -> crowd centroid, so a crowd centered
+  // directly below the stage behaves exactly like the old "facing down" case.
   const stagePosition = { x: 0, y: 0 }
-  const facingPosition = { x: 0, y: 1 } // facing "down" the image
   const metersPerPixel = 1 // 1px = 1m, easy to reason about
+
+  it('derives the facing direction from the crowd centroid, not a separate click', () => {
+    const crowdPoints = [
+      { x: -10, y: 10 },
+      { x: 10, y: 10 },
+      { x: 10, y: 20 },
+      { x: -10, y: 20 },
+    ]
+    const result = generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, temperatureCelsius: 20 })
+    expect(result.facingUnitVector.y).toBeCloseTo(1, 5) // crowd is straight below -> faces "down"
+    expect(result.facingUnitVector.x).toBeCloseTo(0, 5)
+  })
 
   it('returns no delay towers when the crowd is shallower than one ring spacing', () => {
     const crowdPoints = [
@@ -56,7 +77,7 @@ describe('generateSuggestions', () => {
       { x: 10, y: 20 },
       { x: -10, y: 20 },
     ]
-    const result = generateSuggestions({ stagePosition, facingPosition, crowdPoints, metersPerPixel, temperatureCelsius: 20 })
+    const result = generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, temperatureCelsius: 20 })
     expect(result.delayTowers).toHaveLength(0)
   })
 
@@ -67,7 +88,7 @@ describe('generateSuggestions', () => {
       { x: 20, y: 90 },
       { x: -20, y: 90 },
     ]
-    const result = generateSuggestions({ stagePosition, facingPosition, crowdPoints, metersPerPixel, temperatureCelsius: 20 })
+    const result = generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, temperatureCelsius: 20 })
     expect(result.delayTowers.length).toBeGreaterThan(0)
     // towers should get progressively further from the main PA
     const distances = result.delayTowers.map((t) => t.distanceMeters)
@@ -75,7 +96,12 @@ describe('generateSuggestions', () => {
   })
 
   it('returns null if calibration is missing', () => {
-    const result = generateSuggestions({ stagePosition, facingPosition, crowdPoints: [], metersPerPixel: null, temperatureCelsius: 20 })
+    const result = generateSuggestions({ stagePosition, crowdPoints: [{ x: 0, y: 10 }], metersPerPixel: null, temperatureCelsius: 20 })
+    expect(result).toBeNull()
+  })
+
+  it('returns null without any crowd points', () => {
+    const result = generateSuggestions({ stagePosition, crowdPoints: [], metersPerPixel: 1, temperatureCelsius: 20 })
     expect(result).toBeNull()
   })
 })

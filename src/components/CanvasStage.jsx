@@ -144,7 +144,20 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
             {/* Stage + facing direction */}
             {stageMarker?.position && (
               <>
-                <Circle x={stageMarker.position.x} y={stageMarker.position.y} radius={7 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1.5 / scale} />
+                {stageMarker.footprint ? (
+                  <Line
+                    points={stageMarker.footprint.flatMap((p) => [p.x, p.y])}
+                    closed
+                    fill="rgba(55,65,81,0.55)"
+                    stroke={COLORS.markerStroke}
+                    strokeWidth={1.5 / scale}
+                    dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
+                  />
+                ) : (
+                  // Momentary fallback before a facing direction exists yet
+                  // (right after the first click, before any mouse movement).
+                  <Circle x={stageMarker.position.x} y={stageMarker.position.y} radius={7 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1.5 / scale} />
+                )}
                 <Text
                   x={stageMarker.position.x + 10 / scale}
                   y={stageMarker.position.y - 22 / scale}

@@ -69,6 +69,12 @@ export function dot(a, b) {
   return a.x * b.x + a.y * b.y
 }
 
+/** Centroid (average point) of a polygon's vertices. */
+export function computeCentroid(points) {
+  const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 })
+  return { x: sum.x / points.length, y: sum.y / points.length }
+}
+
 /**
  * Core formula from the spec:
  *   distance_meters   = pixel_distance_from_main_PA * meters_per_pixel
@@ -182,11 +188,18 @@ export function generateDelayTowerSuggestions({
 /**
  * Top-level entry point: takes the raw state the Planner page holds and
  * returns the full suggestion set (main PA + delay towers) ready to render.
+ *
+ * There's no separate "which way does the stage face" input anymore — the
+ * vendor just draws the stage as a box and the crowd as a boundary, and the
+ * sound-projection axis is simply the direction from the stage toward the
+ * crowd's centroid. A stage naturally faces its audience, so this needs no
+ * extra click and can't be set inconsistently with where the crowd actually is.
  */
-export function generateSuggestions({ stagePosition, facingPosition, crowdPoints, metersPerPixel, temperatureCelsius }) {
-  if (!stagePosition || !facingPosition || !metersPerPixel) return null
+export function generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, temperatureCelsius }) {
+  if (!stagePosition || !crowdPoints || crowdPoints.length === 0 || !metersPerPixel) return null
 
-  const facingUnitVector = unitVector(stagePosition, facingPosition)
+  const crowdCentroid = computeCentroid(crowdPoints)
+  const facingUnitVector = unitVector(stagePosition, crowdCentroid)
   const mainPA = computeMainPAPosition(stagePosition, facingUnitVector, metersPerPixel)
   const { crowdDepthMeters, delayTowers } = generateDelayTowerSuggestions({
     mainPA,
