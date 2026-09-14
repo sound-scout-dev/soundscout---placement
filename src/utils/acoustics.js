@@ -25,11 +25,12 @@
 //    towers bunch closer together near the stage and spread out further
 //    back — which is how real large-format PA/delay systems are typically
 //    laid out, and is a materially better model than fixed-interval rings.
-// 3. Coverage angle: a single point-source/line-array hang only throws
-//    usefully across a limited horizontal angle. If the crowd is wide
-//    relative to how close it starts, one hang can't physically cover it —
-//    the model splits into a Left/Right hang pair at the stage edges instead
-//    of pretending a single center hang can cover an unrealistic angle.
+// 3. Main PA is always a stereo Left/Right pair at the front corners of the
+//    stage (the standard default for anything above a small/mono setup),
+//    not a single center point — a lone point source can't throw evenly
+//    across a wide audience anyway. Coverage angle is still computed and
+//    flagged if it's wide even for a stereo pair, as a hint that outfill
+//    beyond the two mains may be warranted.
 //
 // This is still a planning heuristic, not a certified acoustic design (every
 // real design also accounts for speaker directivity/Q, ground/wind
@@ -49,16 +50,16 @@ export const SIX_DB_DOUBLING_RATIO = 2
 // doesn't get a string of unrealistically close-together delay towers.
 export const MIN_MAIN_THROW_M = 20
 
-// Typical usable horizontal coverage angle for a single line-array/point-
-// source hang before a second, L/R-split hang is warranted for a wide
-// audience. 90-100° is a common rule-of-thumb ceiling in system design.
-export const MAX_SINGLE_HANG_COVERAGE_DEG = 100
+// Typical usable horizontal coverage angle for a stereo L/R main PA pair
+// before even that needs extra outfill for a very wide audience. 130-150° is
+// a reasonable ceiling for two hangs (vs. ~90-100° for a single point source).
+export const MAX_STEREO_PAIR_COVERAGE_DEG = 140
 
 // Where a flown/stacked main PA typically sits relative to the stage lip.
 export const MAIN_PA_STANDOFF_M = 5
 
-// Half the stage's own drawn width is used to place split L/R hangs; this
-// is the fallback only if no stage width is available.
+// Half the stage's own drawn width is used to place the L/R hangs; this is
+// the fallback only if no stage width is available.
 export const DEFAULT_STAGE_SPAN_FALLBACK_M = 8
 
 // Don't suggest a delay tower inside the last few meters of the crowd area —
