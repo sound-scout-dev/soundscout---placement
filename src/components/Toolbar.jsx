@@ -2,7 +2,6 @@ import { STEPS, stepIndex } from '../utils/steps'
 import { DEFAULT_TEMPERATURE_C } from '../utils/acoustics'
 
 export default function Toolbar({ step, furthestStep, onJumpToStep, temperatureC, onTemperatureChange, onReset, hasImage }) {
-  const currentIdx = stepIndex(step)
   const furthestIdx = stepIndex(furthestStep)
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function buildSummaryText({ calibration, crowd, suggestions, temperatureC }) {
+function buildSummaryText({ calibration, suggestions, temperatureC }) {
   const lines = [
     'SoundScout Venue Planner — Placement Summary',
     '',
@@ -26,7 +26,7 @@ function buildSummaryText({ calibration, crowd, suggestions, temperatureC }) {
   return lines.join('\n')
 }
 
-export default function ResultsPanel({ calibration, crowd, suggestions, temperatureC, stageRef }) {
+export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   if (!suggestions) {
@@ -48,7 +48,7 @@ export default function ResultsPanel({ calibration, crowd, suggestions, temperat
   }
 
   const handleCopySummary = async () => {
-    const text = buildSummaryText({ calibration, crowd, suggestions, temperatureC })
+    const text = buildSummaryText({ calibration, suggestions, temperatureC })
     try {
       await navigator.clipboard.writeText(text)
       setCopyState('copied')
