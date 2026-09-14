@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,29 +9,49 @@
   body,
   #root {
     height: 100%;
+    width: 100%;
+  }
+
+  html {
+    font-family: 'Inter', sans-serif;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-ink-navy text-paper font-body antialiased;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 300ms ease, color 300ms ease;
+  }
+
+  html.dark body {
+    background-color: #121212;
+    color: #f8fafc;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    @apply font-heading text-paper;
+    font-family: 'Space Grotesk', sans-serif;
   }
 
-  /* Every number the app shows the user — distances, delays, coordinates —
-     goes through this class. It's a core brand rule across SoundScout: data
-     is always monospaced so it reads as measured/technical, not editorial. */
-  .data-value {
-    @apply font-mono tabular-nums;
+  *:focus-visible {
+    outline: 2px solid #0891b2;
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
-  .hairline {
-    @apply border border-slate/20;
+  /* Every number the app shows the user — distances, delays, coordinates —
+     goes through this class, same convention as the main platform: data
+     reads as measured/technical via mono, everything else stays in Inter. */
+  .data-value {
+    @apply font-mono tabular-nums;
   }
 }
