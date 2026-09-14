@@ -95,31 +95,32 @@ export default function Planner() {
     return estimateScaleFromPhoto(dataUrl)
   }
 
-  // The stage footprint needs SOME facing direction to orient itself even
-  // before it's locked in — fall back to wherever the mouse currently is
-  // while the vendor is still on the "click to set facing" half of this
-  // step, so the box rotates live instead of only appearing once locked.
-  const stageFacingTarget = stage.facing ?? (step === 'stage' ? previewPoint : null)
-  const stageFootprint = useMemo(() => {
-    if (!stage.position || !stageFacingTarget || !calibration.metersPerPixel) return null
-    const facingUnitVector = unitVector(stage.position, stageFacingTarget)
-    return computeStageFootprint(stage.position, facingUnitVector, calibration.metersPerPixel)
-  }, [stage.position, stageFacingTarget, calibration.metersPerPixel])
+  // Center of the drawn stage box. There's no separate "facing" input
+  // anymore — generateSuggestions derives the sound-projection axis itself,
+  // from this point toward the crowd's centroid, once both exist.
+  const stageCenter = stage.a && stage.b ? { x: (stage.a.x + stage.b.x) / 2, y: (stage.a.y + stage.b.y) / 2 } : null
+
+  const stageDimensionsMeters =
+    stage.locked && calibration.metersPerPixel
+      ? {
+          width: Math.abs(stage.b.x - stage.a.x) * calibration.metersPerPixel,
+          depth: Math.abs(stage.b.y - stage.a.y) * calibration.metersPerPixel,
+        }
+      : null
 
   const suggestions = useMemo(() => {
     if (!calibration.locked || !stage.locked || !crowd.locked) return null
     return generateSuggestions({
-      stagePosition: stage.position,
-      facingPosition: stage.facing,
+      stagePosition: stageCenter,
       crowdPoints: crowd.points,
       metersPerPixel: calibration.metersPerPixel,
       temperatureCelsius: temperatureC,
     })
-  }, [calibration.locked, calibration.metersPerPixel, stage.locked, stage.position, stage.facing, crowd.locked, crowd.points, temperatureC])
+  }, [calibration.locked, calibration.metersPerPixel, stage.locked, stageCenter, crowd.locked, crowd.points, temperatureC])
 
   const scene = {
     calibration: calibration.a ? calibration : null,
-    stageMarker: stage.position ? { ...stage, footprint: stageFootprint } : null,
+    stageMarker: stage.a ? stage : null,
     crowd,
     suggestions,
     previewPoint: step === 'upload' || step === 'results' ? null : previewPoint,
@@ -169,7 +170,13 @@ export default function Planner() {
               onDoubleClick={() => {}}
               stageRef={stageRef}
             />
-            <ResultsPanel calibration={calibration} suggestions={suggestions} temperatureC={temperatureC} stageRef={stageRef} />
+            <ResultsPanel
+              calibration={calibration}
+              suggestions={suggestions}
+              temperatureC={temperatureC}
+              stageRef={stageRef}
+              stageDimensionsMeters={stageDimensionsMeters}
+            />
           </>
         )}
       </main>

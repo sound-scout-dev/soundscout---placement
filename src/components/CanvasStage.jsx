@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Arrow, Text } from 'react-konva'
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'react-konva'
 import useHtmlImage from '../utils/useHtmlImage'
 
 const INTERACTIVE_STEPS = new Set(['calibrate', 'stage', 'crowd'])
@@ -141,26 +141,25 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
               <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill={COLORS.crowd} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />
             ))}
 
-            {/* Stage + facing direction */}
-            {stageMarker?.position && (
+            {/* Stage box — drawn corner-to-corner, same interaction as the
+                calibration line: click one corner, then the opposite one. */}
+            {stageMarker?.a && (
               <>
-                {stageMarker.footprint ? (
-                  <Line
-                    points={stageMarker.footprint.flatMap((p) => [p.x, p.y])}
-                    closed
-                    fill="rgba(55,65,81,0.55)"
-                    stroke={COLORS.markerStroke}
-                    strokeWidth={1.5 / scale}
-                    dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
-                  />
-                ) : (
-                  // Momentary fallback before a facing direction exists yet
-                  // (right after the first click, before any mouse movement).
-                  <Circle x={stageMarker.position.x} y={stageMarker.position.y} radius={7 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1.5 / scale} />
-                )}
+                <Rect
+                  x={Math.min(stageMarker.a.x, (stageMarker.b ?? previewPoint ?? stageMarker.a).x)}
+                  y={Math.min(stageMarker.a.y, (stageMarker.b ?? previewPoint ?? stageMarker.a).y)}
+                  width={Math.abs((stageMarker.b ?? previewPoint ?? stageMarker.a).x - stageMarker.a.x)}
+                  height={Math.abs((stageMarker.b ?? previewPoint ?? stageMarker.a).y - stageMarker.a.y)}
+                  fill="rgba(55,65,81,0.55)"
+                  stroke={COLORS.markerStroke}
+                  strokeWidth={1.5 / scale}
+                  dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
+                />
+                <Circle x={stageMarker.a.x} y={stageMarker.a.y} radius={4 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />
+                {stageMarker.b && <Circle x={stageMarker.b.x} y={stageMarker.b.y} radius={4 / scale} fill={COLORS.stage} stroke={COLORS.markerStroke} strokeWidth={1 / scale} />}
                 <Text
-                  x={stageMarker.position.x + 10 / scale}
-                  y={stageMarker.position.y - 22 / scale}
+                  x={Math.min(stageMarker.a.x, (stageMarker.b ?? previewPoint ?? stageMarker.a).x) + 6 / scale}
+                  y={Math.min(stageMarker.a.y, (stageMarker.b ?? previewPoint ?? stageMarker.a).y) - 18 / scale}
                   text="STAGE"
                   fontFamily="Space Grotesk"
                   fontSize={12 / scale}
@@ -168,25 +167,6 @@ export default function CanvasStage({ imageUrl, step, scene, onPointerDown, onPo
                   fill="#FFFFFF"
                   {...labelShadow}
                 />
-                {(stageMarker.facing || previewPoint) && (
-                  <Arrow
-                    points={[
-                      stageMarker.position.x,
-                      stageMarker.position.y,
-                      (stageMarker.facing ?? previewPoint).x,
-                      (stageMarker.facing ?? previewPoint).y,
-                    ]}
-                    stroke={COLORS.stage}
-                    fill={COLORS.stage}
-                    strokeWidth={2.5 / scale}
-                    pointerLength={10 / scale}
-                    pointerWidth={8 / scale}
-                    dash={stageMarker.locked ? undefined : [6 / scale, 4 / scale]}
-                    shadowColor="white"
-                    shadowBlur={3 / scale}
-                    shadowOpacity={0.6}
-                  />
-                )}
               </>
             )}
 
