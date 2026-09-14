@@ -15,13 +15,10 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
   }
   lines.push(`Crowd depth: ${suggestions.crowdDepthMeters.toFixed(1)}m`, '')
 
-  if (suggestions.needsSplitHangs) {
-    lines.push(
-      `Main PA: SPLIT Left/Right hangs (crowd needs ~${suggestions.coverageAngleDeg.toFixed(0)}° coverage — beyond a single hang's ~100° range)`
-    )
-    suggestions.mainPAs.forEach((hang) => lines.push(`  ${hang.side.toUpperCase()}: (${hang.x.toFixed(0)}, ${hang.y.toFixed(0)}) px`))
-  } else {
-    lines.push(`Main PA: (${suggestions.mainPA.x.toFixed(0)}, ${suggestions.mainPA.y.toFixed(0)}) px — single hang covers the crowd's ~${suggestions.coverageAngleDeg.toFixed(0)}° width`)
+  lines.push(`Main PA: Left/Right pair at the stage's front corners (crowd needs ~${suggestions.coverageAngleDeg.toFixed(0)}° coverage)`)
+  suggestions.mainPAs.forEach((hang) => lines.push(`  ${hang.side.toUpperCase()}: (${hang.x.toFixed(0)}, ${hang.y.toFixed(0)}) px`))
+  if (suggestions.wideCoverageWarning) {
+    lines.push(`  ⚠ Crowd is wide even for a stereo pair (~${suggestions.coverageAngleDeg.toFixed(0)}°) — consider outfill beyond the two mains.`)
   }
   lines.push(`Holds even level (within 6dB) out to ${suggestions.mainCoverage.sixDbPointM.toFixed(0)}m before reinforcement is needed`)
 
