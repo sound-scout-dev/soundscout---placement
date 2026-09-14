@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Logo from './Logo'
+import Button from './Button'
 
 // PLACEHOLDER AUTH — this is a standalone-app stand-in only. Once this tool
 // is properly linked to the main SoundScout AI platform, replace this with
@@ -20,9 +22,9 @@ export default function AuthGate({ children }) {
   if (vendorName) return children(vendorName)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink-navy px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-zinc-950">
       <form
-        className="w-full max-w-sm rounded border border-slate/20 bg-paper/[0.04] p-6"
+        className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         onSubmit={(e) => {
           e.preventDefault()
           if (!draft.trim()) return
@@ -34,29 +36,26 @@ export default function AuthGate({ children }) {
           setVendorName(draft.trim())
         }}
       >
-        <div className="mx-auto mb-4 h-9 w-9 rounded bg-signal-amber flex items-center justify-center">
-          <span className="font-heading text-sm font-bold text-ink-navy">SS</span>
+        <div className="mb-5 flex justify-center">
+          <Logo />
         </div>
-        <h1 className="text-center font-heading text-base font-semibold text-paper">SoundScout Venue Planner</h1>
-        <p className="mt-1 text-center text-xs text-slate">Sign in to continue (placeholder — replace with platform login)</p>
+        <h1 className="text-center font-display text-base font-semibold text-gray-900 dark:text-white">Sign in to continue</h1>
+        <p className="mt-1 text-center text-xs text-gray-500 dark:text-zinc-400">Placeholder auth — replace with platform login</p>
 
-        <label className="mt-5 block text-xs text-slate">
-          Vendor name
+        <label className="mt-5 block">
+          <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-zinc-400">Vendor name</span>
           <input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="e.g. Colombo Sound Co."
-            className="mt-1 w-full rounded border border-slate/30 bg-paper/5 px-3 py-2 text-sm text-paper focus:border-signal-amber focus:outline-none"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-all duration-150 ease-out placeholder:text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
           />
         </label>
 
-        <button
-          type="submit"
-          className="mt-4 w-full rounded bg-signal-amber px-3 py-2 text-sm font-medium text-ink-navy hover:bg-signal-amber/90 transition-colors"
-        >
+        <Button type="submit" className="mt-4 w-full">
           Continue
-        </button>
+        </Button>
       </form>
     </div>
   )

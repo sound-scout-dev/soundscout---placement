@@ -102,7 +102,7 @@ export default function Planner() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-gray-50/50 dark:bg-zinc-950">
       <Toolbar
         step={step}
         furthestStep={furthestStep}
