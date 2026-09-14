@@ -13,16 +13,27 @@ import useHtmlImage from '../utils/useHtmlImage'
 import { stepIndex } from '../utils/steps'
 
 const EMPTY_CALIBRATION = { metersPerPixel: null, reasoning: null, confidence: null }
-// The stage is just a box, drawn corner-to-corner. `suggested` marks a box
+// The stage is a rotatable box: {x, y} is its CENTER (matches Konva's
+// offset-to-center convention for rotate-in-place), width/height are its
+// unrotated local dimensions, rotation in degrees. `suggested` marks a box
 // that came from the AI analysis and hasn't been accepted or overridden yet.
-const EMPTY_STAGE = { a: null, b: null, locked: false, suggested: false, reasoning: null }
+const EMPTY_STAGE = { x: null, y: null, width: 0, height: 0, rotation: 0, locked: false, suggested: false, reasoning: null }
 const EMPTY_CROWD = { points: [], locked: false }
+
+// Where "← Back" lands from each step — deliberately not always the literal
+// previous step: there's nothing editable at 'analyzing' itself, so backing
+// out of 'stage' re-runs the analysis (same photo, fresh AI pass) rather
+// than dead-ending on a spinner.
+const BACK_TARGET = { analyzing: 'upload', stage: 'analyzing', crowd: 'stage', results: 'crowd' }
 
 export default function Planner({ vendorName, onLogout }) {
   const [imageUrl, setImageUrl] = useState(null)
   const [temperatureC, setTemperatureC] = useState(DEFAULT_TEMPERATURE_C)
   const [calibration, setCalibration] = useState(EMPTY_CALIBRATION)
   const [stage, setStage] = useState(EMPTY_STAGE)
+  // Holds the first click while the vendor is drawing a brand-new stage box
+  // (before it becomes a real, transformable shape on the second click).
+  const [stageDraftCorner, setStageDraftCorner] = useState(null)
   const [crowd, setCrowd] = useState(EMPTY_CROWD)
   const [step, setStep] = useState('upload')
   const [furthestStep, setFurthestStep] = useState('upload')
@@ -31,7 +42,7 @@ export default function Planner({ vendorName, onLogout }) {
   // Bumped to force the analysis effect to re-run even when `step` is
   // already 'analyzing' (setStep('analyzing') alone is a no-op then, since
   // React bails out on an unchanged value) — e.g. retrying after an error,
-  // or re-opening "Analyze" from the breadcrumb while still on that step.
+  // or re-opening "Analyze" from the breadcrumb/Back button.
   const [analysisAttempt, setAnalysisAttempt] = useState(0)
 
   const stageRef = useRef(null)
@@ -49,16 +60,27 @@ export default function Planner({ vendorName, onLogout }) {
     setStep(key)
     // Re-opens that layer for editing. Downstream results just recompute
     // live from whatever the layers end up holding, so nothing else needs
-    // to be cleared. Jumping back to "Analyze" re-runs the AI analysis.
+    // to be cleared — going back and forward again preserves your work.
     if (key === 'analyzing') setAnalysisAttempt((n) => n + 1)
     if (key === 'stage') setStage((prev) => ({ ...prev, locked: false }))
     if (key === 'crowd') setCrowd((prev) => ({ ...prev, locked: false }))
+  }
+
+  const handleBack = () => {
+    const target = BACK_TARGET[step]
+    if (!target) return
+    if (target === 'upload') {
+      handleReset()
+      return
+    }
+    jumpToStep(target)
   }
 
   const handleImageSelected = (url) => {
     setImageUrl(url)
     setCalibration(EMPTY_CALIBRATION)
     setStage(EMPTY_STAGE)
+    setStageDraftCorner(null)
     setCrowd(EMPTY_CROWD)
     setAnalysisError(null)
     advanceTo('analyzing')
@@ -68,6 +90,7 @@ export default function Planner({ vendorName, onLogout }) {
     setImageUrl(null)
     setCalibration(EMPTY_CALIBRATION)
     setStage(EMPTY_STAGE)
+    setStageDraftCorner(null)
     setCrowd(EMPTY_CROWD)
     setTemperatureC(DEFAULT_TEMPERATURE_C)
     setAnalysisError(null)
@@ -92,9 +115,13 @@ export default function Planner({ vendorName, onLogout }) {
           confidence: result.scale_confidence,
         })
         if (result.stage_box) {
+          const { x1, y1, x2, y2 } = result.stage_box
           setStage({
-            a: { x: result.stage_box.x1 * imgSize.width, y: result.stage_box.y1 * imgSize.height },
-            b: { x: result.stage_box.x2 * imgSize.width, y: result.stage_box.y2 * imgSize.height },
+            x: ((x1 + x2) / 2) * imgSize.width,
+            y: ((y1 + y2) / 2) * imgSize.height,
+            width: Math.max(10, (x2 - x1) * imgSize.width),
+            height: Math.max(10, (y2 - y1) * imgSize.height),
+            rotation: 0,
             locked: false,
             suggested: true,
             reasoning: result.stage_reasoning,
@@ -114,52 +141,69 @@ export default function Planner({ vendorName, onLogout }) {
 
   const handlePointerDown = (point) => {
     if (step === 'stage') {
-      setStage((prev) => {
-        if (!prev.a || (prev.a && prev.b)) return { ...EMPTY_STAGE, a: point }
-        advanceTo('crowd')
-        return { ...prev, b: point, locked: true }
+      // Once a box exists, further plain clicks on the canvas do nothing —
+      // adjustments happen by dragging/resizing/rotating the box itself, or
+      // via the explicit "Clear & Redraw" action, so a stray click can't
+      // wipe out an in-progress edit.
+      if (stage.x != null) return
+      if (!stageDraftCorner) {
+        setStageDraftCorner(point)
+        return
+      }
+      const width = Math.max(10, Math.abs(point.x - stageDraftCorner.x))
+      const height = Math.max(10, Math.abs(point.y - stageDraftCorner.y))
+      setStage({
+        x: (stageDraftCorner.x + point.x) / 2,
+        y: (stageDraftCorner.y + point.y) / 2,
+        width,
+        height,
+        rotation: 0,
+        locked: false,
+        suggested: false,
+        reasoning: null,
       })
+      setStageDraftCorner(null)
     } else if (step === 'crowd') {
       setCrowd((prev) => ({ ...prev, points: [...prev.points, point] }))
     }
   }
 
-  const handleAcceptStageSuggestion = () => {
+  // Called by the canvas whenever the vendor drags, resizes, or rotates the
+  // stage box — merges the change straight into state so it's reflected
+  // live everywhere (footprint stats, main PA position, etc).
+  const handleStageTransform = (next) => {
+    setStage((prev) => ({ ...prev, ...next }))
+  }
+
+  const handleClearStage = () => {
+    setStage(EMPTY_STAGE)
+    setStageDraftCorner(null)
+  }
+
+  const handleConfirmStage = () => {
     setStage((prev) => ({ ...prev, locked: true }))
     advanceTo('crowd')
   }
 
-  // Center of the drawn stage box. There's no separate "facing" input —
-  // generateSuggestions derives the sound-projection axis itself, from this
-  // point toward the crowd's centroid, once both exist. Memoized on the
-  // underlying coordinates so it keeps a stable reference across renders
-  // where the box hasn't actually moved.
-  const stageCenter = useMemo(
-    () => (stage.a && stage.b ? { x: (stage.a.x + stage.b.x) / 2, y: (stage.a.y + stage.b.y) / 2 } : null),
-    [stage.a, stage.b]
-  )
-
   const stageDimensionsMeters =
     stage.locked && calibration.metersPerPixel
-      ? {
-          width: Math.abs(stage.b.x - stage.a.x) * calibration.metersPerPixel,
-          depth: Math.abs(stage.b.y - stage.a.y) * calibration.metersPerPixel,
-        }
+      ? { width: stage.width * calibration.metersPerPixel, depth: stage.height * calibration.metersPerPixel }
       : null
 
   const suggestions = useMemo(() => {
-    if (!calibration.metersPerPixel || !stage.locked || !crowd.locked) return null
+    if (!calibration.metersPerPixel || !stage.locked || !crowd.locked || stage.x == null) return null
     return generateSuggestions({
-      stagePosition: stageCenter,
-      stageWidthMeters: stageDimensionsMeters?.width,
+      stagePosition: { x: stage.x, y: stage.y },
+      stageWidthMeters: stage.width * calibration.metersPerPixel,
       crowdPoints: crowd.points,
       metersPerPixel: calibration.metersPerPixel,
       temperatureCelsius: temperatureC,
     })
-  }, [calibration.metersPerPixel, stage.locked, stageCenter, stageDimensionsMeters?.width, crowd.locked, crowd.points, temperatureC])
+  }, [calibration.metersPerPixel, stage.locked, stage.x, stage.y, stage.width, crowd.locked, crowd.points, temperatureC])
 
   const scene = {
-    stageMarker: stage.a ? stage : null,
+    stageMarker: stage.x != null ? stage : null,
+    stageDraftCorner: step === 'stage' ? stageDraftCorner : null,
     crowd,
     suggestions,
     previewPoint: step === 'upload' || step === 'analyzing' || step === 'results' ? null : previewPoint,
@@ -185,14 +229,15 @@ export default function Planner({ vendorName, onLogout }) {
           step={step}
           stage={stage}
           crowd={crowd}
-          onAcceptStageSuggestion={handleAcceptStageSuggestion}
+          onBack={stepIndex(step) > 0 ? handleBack : null}
+          onConfirmStage={handleConfirmStage}
           onUndoCrowdPoint={() => setCrowd((prev) => ({ ...prev, points: prev.points.slice(0, -1) }))}
           onClearCrowd={() => setCrowd((prev) => ({ ...prev, points: [] }))}
           onFinishCrowd={() => {
             setCrowd((prev) => ({ ...prev, locked: true }))
             advanceTo('results')
           }}
-          onRestartStage={() => setStage(EMPTY_STAGE)}
+          onClearStage={handleClearStage}
         />
       )}
 
@@ -209,7 +254,7 @@ export default function Planner({ vendorName, onLogout }) {
                 scene={scene}
                 onPointerDown={handlePointerDown}
                 onPointerMove={setPreviewPoint}
-                onDoubleClick={() => {}}
+                onStageTransform={handleStageTransform}
                 stageRef={stageRef}
               />
               {step === 'analyzing' && (
@@ -217,6 +262,7 @@ export default function Planner({ vendorName, onLogout }) {
                   error={imageError || analysisError}
                   onRetry={imageError ? handleReset : () => setAnalysisAttempt((n) => n + 1)}
                   retryLabel={imageError ? 'Choose a Different Photo' : 'Retry Analysis'}
+                  onBack={handleReset}
                 />
               )}
             </div>

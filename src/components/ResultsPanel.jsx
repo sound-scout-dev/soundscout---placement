@@ -106,23 +106,20 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
 
       <div className="rounded-lg border border-emerald-600/20 bg-white p-3 shadow-sm dark:bg-zinc-950">
         <div className="flex items-baseline justify-between">
-          <p className="font-display text-xs font-semibold text-emerald-600">{suggestions.needsSplitHangs ? 'Main PA — Split L/R' : 'Main PA'}</p>
+          <p className="font-display text-xs font-semibold text-emerald-600">Main PA — Left/Right Pair</p>
         </div>
-        {suggestions.needsSplitHangs ? (
-          <>
-            <p className="mt-1 text-[10.5px] text-gray-500 dark:text-zinc-400">
-              Crowd needs ~{suggestions.coverageAngleDeg.toFixed(0)}° of coverage — wider than a single hang's usable range (~100°), so it's split
-              into two hangs at the stage edges.
-            </p>
-            {suggestions.mainPAs.map((hang) => (
-              <p key={hang.side} className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
-                {hang.side.toUpperCase()} — x: {hang.x.toFixed(0)}px, y: {hang.y.toFixed(0)}px
-              </p>
-            ))}
-          </>
-        ) : (
-          <p className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
-            x: {suggestions.mainPA.x.toFixed(0)}px, y: {suggestions.mainPA.y.toFixed(0)}px
+        <p className="mt-1 text-[10.5px] text-gray-500 dark:text-zinc-400">
+          Placed at the stage's front corners, standard for anything above a small setup — covers the crowd's ~{suggestions.coverageAngleDeg.toFixed(0)}°
+          width between them.
+        </p>
+        {suggestions.mainPAs.map((hang) => (
+          <p key={hang.side} className="data-value mt-1 text-[11px] text-gray-500 dark:text-zinc-400">
+            {hang.side.toUpperCase()} — x: {hang.x.toFixed(0)}px, y: {hang.y.toFixed(0)}px
+          </p>
+        ))}
+        {suggestions.wideCoverageWarning && (
+          <p className="mt-1.5 text-[10.5px] font-medium text-amber-600">
+            ⚠ Crowd is wide even for a stereo pair — consider outfill speakers beyond the two mains.
           </p>
         )}
         <p className="mt-1.5 border-t border-emerald-600/10 pt-1.5 text-[10.5px] text-gray-500 dark:text-zinc-400">

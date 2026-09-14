@@ -95,10 +95,10 @@ export function parseInfraPlanInput(rawText, planChoice = 'premium') {
 export function comparePlanToSuggestions(planCounts, suggestions) {
   if (!planCounts || !suggestions) return null
 
-  const neededHangs = suggestions.mainPAs?.length ?? 1
+  const neededHangs = suggestions.mainPAs?.length ?? 2
   const mainOk = planCounts.totalMainUnits > 0
   const mainSummary = mainOk
-    ? `Plan includes ${planCounts.totalMainUnits} main-PA-type item(s)${neededHangs > 1 ? ` — enough to split across the ${neededHangs} suggested hangs` : ''}.`
+    ? `Plan includes ${planCounts.totalMainUnits} main-PA-type item(s) — enough to split across the ${neededHangs} suggested Left/Right hangs.`
     : "Plan doesn't list any main-PA-type equipment (speakers/line arrays) — add some before relying on this placement."
 
   const neededDelays = suggestions.delayTowers.length

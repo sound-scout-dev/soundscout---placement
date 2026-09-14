@@ -63,7 +63,7 @@ describe('parseInfraPlanInput', () => {
 })
 
 describe('comparePlanToSuggestions', () => {
-  const suggestions = { mainPAs: [{ side: 'center' }], delayTowers: [{}, {}] } // 1 hang, needs 2 delay towers
+  const suggestions = { mainPAs: [{ side: 'left' }, { side: 'right' }], delayTowers: [{}, {}] } // needs 2 delay towers
 
   it('flags a shortfall when the plan has fewer delay units than the physics suggests', () => {
     const planCounts = { totalMainUnits: 2, totalDelayUnits: 1 }
