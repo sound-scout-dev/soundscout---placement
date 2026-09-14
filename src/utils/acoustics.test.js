@@ -9,7 +9,8 @@ import {
   computeMainPAPositions,
   generateSuggestions,
   MIN_MAIN_THROW_M,
-  MAX_SINGLE_HANG_COVERAGE_DEG,
+  MAX_STEREO_PAIR_COVERAGE_DEG,
+  MAIN_PA_STANDOFF_M,
 } from './acoustics'
 
 describe('speedOfSoundMs', () => {
@@ -102,7 +103,7 @@ describe('computeCoverageAngleDeg', () => {
       { x: -50, y: 40 },
     ]
     const angle = computeCoverageAngleDeg(referencePoint, facingUnitVector, crowdPoints, 10)
-    expect(angle).toBeGreaterThan(MAX_SINGLE_HANG_COVERAGE_DEG)
+    expect(angle).toBeGreaterThan(MAX_STEREO_PAIR_COVERAGE_DEG)
   })
 
   it('is narrow for a crowd that starts far and is narrow', () => {
@@ -113,7 +114,7 @@ describe('computeCoverageAngleDeg', () => {
       { x: -10, y: 90 },
     ]
     const angle = computeCoverageAngleDeg(referencePoint, facingUnitVector, crowdPoints, 30)
-    expect(angle).toBeLessThan(MAX_SINGLE_HANG_COVERAGE_DEG)
+    expect(angle).toBeLessThan(MAX_STEREO_PAIR_COVERAGE_DEG)
   })
 })
 
@@ -122,7 +123,7 @@ describe('computeMainPAPositions', () => {
   const facingUnitVector = { x: 0, y: 1 }
   const metersPerPixel = 1
 
-  it('stays a single center hang for a normal, reasonably narrow crowd', () => {
+  it('always places a symmetric Left/Right pair, even for a normal narrow crowd', () => {
     const crowdPoints = [
       { x: -10, y: 30 },
       { x: 10, y: 30 },
@@ -130,24 +131,38 @@ describe('computeMainPAPositions', () => {
       { x: -10, y: 90 },
     ]
     const result = computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx: 25, stageWidthMeters: 8 })
-    expect(result.needsSplitHangs).toBe(false)
-    expect(result.positions).toHaveLength(1)
-    expect(result.positions[0].side).toBe('center')
-  })
-
-  it('splits into a symmetric Left/Right pair when the crowd is too wide for one hang', () => {
-    const crowdPoints = [
-      { x: -50, y: 10 },
-      { x: 50, y: 10 },
-      { x: 50, y: 40 },
-      { x: -50, y: 40 },
-    ]
-    const result = computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx: 5, stageWidthMeters: 8 })
-    expect(result.needsSplitHangs).toBe(true)
     expect(result.positions).toHaveLength(2)
     expect(result.positions.map((p) => p.side).sort()).toEqual(['left', 'right'])
+    expect(result.wideCoverageWarning).toBe(false)
     // Symmetric around the centerline.
     expect(result.positions[0].x).toBeCloseTo(-result.positions[1].x, 5)
+  })
+
+  it('flags a wide-coverage warning when even a stereo pair would be stretched thin', () => {
+    const crowdPoints = [
+      { x: -80, y: 5 },
+      { x: 80, y: 5 },
+      { x: 80, y: 20 },
+      { x: -80, y: 20 },
+    ]
+    const result = computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx: 5, stageWidthMeters: 8 })
+    expect(result.wideCoverageWarning).toBe(true)
+    expect(result.positions).toHaveLength(2) // still just the standard pair, not more hangs
+  })
+
+  it('positions the pair using the stage\'s own width, in front of the stage', () => {
+    const crowdPoints = [
+      { x: -10, y: 30 },
+      { x: 10, y: 30 },
+      { x: 10, y: 90 },
+      { x: -10, y: 90 },
+    ]
+    const narrow = computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx: 25, stageWidthMeters: 4 })
+    const wide = computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx: 25, stageWidthMeters: 20 })
+    const spanOf = (r) => Math.abs(r.positions[0].x - r.positions[1].x)
+    expect(spanOf(wide)).toBeGreaterThan(spanOf(narrow))
+    // Both hangs sit ahead of the stage (same standoff distance forward).
+    expect(narrow.positions[0].y).toBeCloseTo(MAIN_PA_STANDOFF_M, 5)
   })
 })
 
@@ -170,7 +185,7 @@ describe('generateSuggestions', () => {
     expect(result.facingUnitVector.x).toBeCloseTo(0, 5)
   })
 
-  it('holds a single main hang with no delay towers within the main PA\'s own 6dB throw', () => {
+  it('needs no delay towers when the crowd is within the main PA\'s own 6dB throw', () => {
     // Crowd sits entirely inside the main PA's design throw (MIN_MAIN_THROW_M -> 2x that).
     const crowdPoints = [
       { x: -10, y: 10 },
@@ -218,16 +233,27 @@ describe('generateSuggestions', () => {
     }
   })
 
-  it('splits into Left/Right main hangs for a wide, close crowd', () => {
+  it('always returns a Left/Right main PA pair', () => {
     const crowdPoints = [
-      { x: -60, y: 10 },
-      { x: 60, y: 10 },
-      { x: 60, y: 40 },
-      { x: -60, y: 40 },
+      { x: -10, y: 40 },
+      { x: 10, y: 40 },
+      { x: 10, y: 80 },
+      { x: -10, y: 80 },
     ]
     const result = generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, stageWidthMeters: 10, temperatureCelsius: 20 })
-    expect(result.needsSplitHangs).toBe(true)
     expect(result.mainPAs).toHaveLength(2)
+    expect(result.mainPAs.map((p) => p.side).sort()).toEqual(['left', 'right'])
+  })
+
+  it('flags a wide-coverage warning for a crowd too wide even for the stereo pair', () => {
+    const crowdPoints = [
+      { x: -80, y: 5 },
+      { x: 80, y: 5 },
+      { x: 80, y: 20 },
+      { x: -80, y: 20 },
+    ]
+    const result = generateSuggestions({ stagePosition, crowdPoints, metersPerPixel, stageWidthMeters: 10, temperatureCelsius: 20 })
+    expect(result.wideCoverageWarning).toBe(true)
   })
 
   it('returns null if calibration is missing', () => {

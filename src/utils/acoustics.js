@@ -200,24 +200,23 @@ export function computeCoverageAngleDeg(referencePoint, facingUnitVector, crowdP
 }
 
 /**
- * Decides whether one main hang can physically cover the crowd, or whether
- * it needs to split into a Left/Right pair — and if so, positions them at
- * the edges of the stage the vendor actually drew (falling back to a
- * generic span if no stage width was given).
+ * Places the main PA as a Left/Right stereo pair at the front corners of the
+ * stage — the standard default rig, not a single center point — positioned
+ * using the stage's own drawn width (falling back to a generic span if no
+ * stage width was given). Also reports the coverage angle a stereo pair
+ * would need to span, flagged if it's wide even for two hangs, as a hint
+ * that outfill beyond the mains may be worth planning for.
  */
 export function computeMainPAPositions({ stagePosition, facingUnitVector, crowdPoints, metersPerPixel, nearDepthPx, stageWidthMeters }) {
   const mainPACenter = computeMainPAPosition(stagePosition, facingUnitVector, metersPerPixel)
   const coverageAngleDeg = computeCoverageAngleDeg(mainPACenter, facingUnitVector, crowdPoints, nearDepthPx)
-  const needsSplitHangs = coverageAngleDeg > MAX_SINGLE_HANG_COVERAGE_DEG
-
-  if (!needsSplitHangs) {
-    return { positions: [{ ...mainPACenter, side: 'center' }], mainPACenter, coverageAngleDeg, needsSplitHangs }
-  }
+  const wideCoverageWarning = coverageAngleDeg > MAX_STEREO_PAIR_COVERAGE_DEG
 
   const across = perpendicular(facingUnitVector)
   const spanMeters = stageWidthMeters && stageWidthMeters > 0.5 ? stageWidthMeters : DEFAULT_STAGE_SPAN_FALLBACK_M
   // Hangs sit inset from the very edge of the stage (0.8x half-width), not
-  // hanging off it entirely — a common practical positioning.
+  // hanging off it entirely — a common practical positioning, right at the
+  // front corners on either side.
   const offsetPx = (spanMeters / 2) * 0.8 / metersPerPixel
 
   return {
@@ -227,7 +226,7 @@ export function computeMainPAPositions({ stagePosition, facingUnitVector, crowdP
     ],
     mainPACenter,
     coverageAngleDeg,
-    needsSplitHangs,
+    wideCoverageWarning,
   }
 }
 
@@ -324,7 +323,7 @@ export function generateSuggestions({ stagePosition, stageWidthMeters, crowdPoin
     temperatureCelsius,
   })
 
-  const { positions: mainPAs, mainPACenter, coverageAngleDeg, needsSplitHangs } = computeMainPAPositions({
+  const { positions: mainPAs, mainPACenter, coverageAngleDeg, wideCoverageWarning } = computeMainPAPositions({
     stagePosition,
     facingUnitVector,
     crowdPoints,
@@ -337,7 +336,7 @@ export function generateSuggestions({ stagePosition, stageWidthMeters, crowdPoin
     mainPAs,
     mainPA: mainPACenter, // centerline reference — what delay times/SPL are measured from
     coverageAngleDeg,
-    needsSplitHangs,
+    wideCoverageWarning,
     facingUnitVector,
     crowdDepthMeters,
     mainCoverage,
