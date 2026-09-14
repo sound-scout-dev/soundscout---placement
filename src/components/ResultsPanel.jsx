@@ -32,7 +32,7 @@ function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensi
   return lines.join('\n')
 }
 
-export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef }) {
+export default function ResultsPanel({ calibration, suggestions, temperatureC, stageRef, stageDimensionsMeters }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   if (!suggestions) {
@@ -54,7 +54,7 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
   }
 
   const handleCopySummary = async () => {
-    const text = buildSummaryText({ calibration, suggestions, temperatureC })
+    const text = buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters })
     try {
       await navigator.clipboard.writeText(text)
       setCopyState('copied')
@@ -78,6 +78,14 @@ export default function ResultsPanel({ calibration, suggestions, temperatureC, s
         <dd className="data-value text-right text-gray-900 dark:text-white">{temperatureC}°C</dd>
         <dt className="text-gray-500 dark:text-zinc-400">Speed of sound</dt>
         <dd className="data-value text-right text-gray-900 dark:text-white">{suggestions.speedOfSoundMs.toFixed(1)} m/s</dd>
+        {stageDimensionsMeters && (
+          <>
+            <dt className="text-gray-500 dark:text-zinc-400">Stage footprint</dt>
+            <dd className="data-value text-right text-gray-900 dark:text-white">
+              {stageDimensionsMeters.width.toFixed(1)} × {stageDimensionsMeters.depth.toFixed(1)} m
+            </dd>
+          </>
+        )}
         <dt className="text-gray-500 dark:text-zinc-400">Crowd depth</dt>
         <dd className="data-value text-right text-gray-900 dark:text-white">{suggestions.crowdDepthMeters.toFixed(1)} m</dd>
       </dl>
