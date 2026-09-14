@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import Button from './Button'
 
-function buildSummaryText({ calibration, suggestions, temperatureC }) {
+function buildSummaryText({ calibration, suggestions, temperatureC, stageDimensionsMeters }) {
   const lines = [
     'SoundScout Venue Planner — Placement Summary',
     '',
     `Scale: ${calibration.metersPerPixel.toFixed(4)} m/px (calibrated from a ${calibration.realDistanceMeters}m reference)`,
     `Air temperature: ${temperatureC}°C  (speed of sound: ${suggestions.speedOfSoundMs.toFixed(1)} m/s)`,
+  ]
+  if (stageDimensionsMeters) {
+    lines.push(`Stage footprint: ${stageDimensionsMeters.width.toFixed(1)}m × ${stageDimensionsMeters.depth.toFixed(1)}m`)
+  }
+  lines.push(
     `Crowd depth: ${suggestions.crowdDepthMeters.toFixed(1)}m`,
     '',
-    `Main PA: (${suggestions.mainPA.x.toFixed(0)}, ${suggestions.mainPA.y.toFixed(0)}) px`,
-  ]
+    `Main PA: (${suggestions.mainPA.x.toFixed(0)}, ${suggestions.mainPA.y.toFixed(0)}) px`
+  )
   if (suggestions.delayTowers.length === 0) {
     lines.push('', 'No delay towers required — crowd depth is within single-PA coverage at default 35m spacing.')
   } else {
