@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Toolbar from '../components/Toolbar'
 import Disclaimer from '../components/Disclaimer'
+import WorkflowStepper from '../components/WorkflowStepper'
 import ImageUploader from '../components/ImageUploader'
 import CanvasStage from '../components/CanvasStage'
 import AnalyzingOverlay from '../components/AnalyzingOverlay'
@@ -17,7 +18,7 @@ const EMPTY_CALIBRATION = { metersPerPixel: null, reasoning: null, confidence: n
 const EMPTY_STAGE = { a: null, b: null, locked: false, suggested: false, reasoning: null }
 const EMPTY_CROWD = { points: [], locked: false }
 
-export default function Planner() {
+export default function Planner({ vendorName, onLogout }) {
   const [imageUrl, setImageUrl] = useState(null)
   const [temperatureC, setTemperatureC] = useState(DEFAULT_TEMPERATURE_C)
   const [calibration, setCalibration] = useState(EMPTY_CALIBRATION)
@@ -167,17 +168,17 @@ export default function Planner() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50/50 dark:bg-zinc-950">
       <Toolbar
-        step={step}
-        furthestStep={furthestStep}
-        onJumpToStep={jumpToStep}
         temperatureC={temperatureC}
         onTemperatureChange={setTemperatureC}
         metersPerPixel={calibration.metersPerPixel}
         onMetersPerPixelChange={(value) => setCalibration((prev) => ({ ...prev, metersPerPixel: value }))}
         onReset={handleReset}
         hasImage={!!imageUrl}
+        vendorName={vendorName}
+        onLogout={onLogout}
       />
       <Disclaimer />
+      <WorkflowStepper step={step} furthestStep={furthestStep} onStepClick={jumpToStep} />
 
       {imageUrl && step !== 'analyzing' && (
         <StepInstructions
