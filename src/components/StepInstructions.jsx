@@ -77,7 +77,7 @@ export default function StepInstructions({ step, calibration, crowd, onConfirmDi
   if (step === 'stage') {
     return (
       <Bar>
-        <Instruction>Click to place the stage, then click again in the direction it faces.</Instruction>
+        <Instruction>Click one corner of the stage area, then click the opposite corner to draw the box.</Instruction>
         <Button variant="outline" size="sm" onClick={onRestartStage}>
           Redo Placement
         </Button>
