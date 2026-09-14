@@ -6,6 +6,7 @@ import CanvasStage from '../components/CanvasStage'
 import StepInstructions from '../components/StepInstructions'
 import ResultsPanel from '../components/ResultsPanel'
 import { generateSuggestions, computeMetersPerPixel, DEFAULT_TEMPERATURE_C } from '../utils/acoustics'
+import { estimateScaleFromPhoto } from '../utils/aiService'
 import { stepIndex } from '../utils/steps'
 
 const EMPTY_CALIBRATION = { a: null, b: null, locked: false, realDistanceMeters: null, metersPerPixel: null, label: null }
@@ -82,6 +83,17 @@ export default function Planner() {
     advanceTo('stage')
   }
 
+  // Snapshots the canvas (photo + the calibration line drawn on it) and asks
+  // the AI service to suggest a real-world distance. The caller (the
+  // "Confirm Scale" form) still requires the vendor to review/edit and
+  // submit the value themselves — this only pre-fills a starting guess.
+  const handleRequestScaleEstimate = async () => {
+    const stage = stageRef.current
+    if (!stage) throw new Error('Canvas is not ready yet.')
+    const dataUrl = stage.toDataURL({ pixelRatio: 1 })
+    return estimateScaleFromPhoto(dataUrl)
+  }
+
   const suggestions = useMemo(() => {
     if (!calibration.locked || !stage.locked || !crowd.locked) return null
     return generateSuggestions({
@@ -120,6 +132,7 @@ export default function Planner() {
           calibration={calibration}
           crowd={crowd}
           onConfirmDistance={handleConfirmDistance}
+          onRequestScaleEstimate={handleRequestScaleEstimate}
           onUndoCrowdPoint={() => setCrowd((prev) => ({ ...prev, points: prev.points.slice(0, -1) }))}
           onClearCrowd={() => setCrowd((prev) => ({ ...prev, points: [] }))}
           onFinishCrowd={() => {
