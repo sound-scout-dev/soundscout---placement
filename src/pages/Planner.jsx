@@ -150,11 +150,12 @@ export default function Planner() {
     if (!calibration.metersPerPixel || !stage.locked || !crowd.locked) return null
     return generateSuggestions({
       stagePosition: stageCenter,
+      stageWidthMeters: stageDimensionsMeters?.width,
       crowdPoints: crowd.points,
       metersPerPixel: calibration.metersPerPixel,
       temperatureCelsius: temperatureC,
     })
-  }, [calibration.metersPerPixel, stage.locked, stageCenter, crowd.locked, crowd.points, temperatureC])
+  }, [calibration.metersPerPixel, stage.locked, stageCenter, stageDimensionsMeters, crowd.locked, crowd.points, temperatureC])
 
   const scene = {
     stageMarker: stage.a ? stage : null,

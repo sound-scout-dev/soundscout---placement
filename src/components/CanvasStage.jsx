@@ -143,19 +143,23 @@ export default function CanvasStage({ image, imgSize, step, scene, onPointerDown
             )}
 
             {/* AI-generated suggestions */}
-            {suggestions?.mainPA && (
+            {suggestions?.mainPAs && (
               <>
-                <Circle x={suggestions.mainPA.x} y={suggestions.mainPA.y} radius={8 / scale} fill={COLORS.mainPA} stroke={COLORS.markerStroke} strokeWidth={1.5 / scale} />
-                <Text
-                  x={suggestions.mainPA.x + 12 / scale}
-                  y={suggestions.mainPA.y - 8 / scale}
-                  text="MAIN PA"
-                  fontFamily="Space Grotesk"
-                  fontSize={12 / scale}
-                  fontStyle="bold"
-                  fill={COLORS.mainPA}
-                  {...labelShadow}
-                />
+                {suggestions.mainPAs.map((hang) => (
+                  <Fragment key={hang.side}>
+                    <Circle x={hang.x} y={hang.y} radius={8 / scale} fill={COLORS.mainPA} stroke={COLORS.markerStroke} strokeWidth={1.5 / scale} />
+                    <Text
+                      x={hang.x + 12 / scale}
+                      y={hang.y - 8 / scale}
+                      text={suggestions.needsSplitHangs ? `MAIN PA (${hang.side.toUpperCase()})` : 'MAIN PA'}
+                      fontFamily="Space Grotesk"
+                      fontSize={12 / scale}
+                      fontStyle="bold"
+                      fill={COLORS.mainPA}
+                      {...labelShadow}
+                    />
+                  </Fragment>
+                ))}
                 {suggestions.delayTowers.map((tower, i) => (
                   <Fragment key={tower.id}>
                     <Line
