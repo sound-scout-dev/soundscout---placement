@@ -97,8 +97,14 @@ export default function Planner() {
 
   // Center of the drawn stage box. There's no separate "facing" input
   // anymore — generateSuggestions derives the sound-projection axis itself,
-  // from this point toward the crowd's centroid, once both exist.
-  const stageCenter = stage.a && stage.b ? { x: (stage.a.x + stage.b.x) / 2, y: (stage.a.y + stage.b.y) / 2 } : null
+  // from this point toward the crowd's centroid, once both exist. Memoized
+  // on the underlying coordinates (not just stage.a/stage.b) so it keeps a
+  // stable reference across renders where the box hasn't actually moved —
+  // otherwise the suggestions useMemo below would never actually memoize.
+  const stageCenter = useMemo(
+    () => (stage.a && stage.b ? { x: (stage.a.x + stage.b.x) / 2, y: (stage.a.y + stage.b.y) / 2 } : null),
+    [stage.a, stage.b]
+  )
 
   const stageDimensionsMeters =
     stage.locked && calibration.metersPerPixel
